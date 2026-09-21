@@ -5,7 +5,7 @@ import Sidebar from './components/Sidebar';
 import UploadModal from './components/UploadModal';
 import DocumentList from './components/DocumentList';
 import DocumentWorkspace from './components/DocumentWorkspace';
-import { checkHealth, fetchDocuments } from './services/api';
+import { checkHealth, fetchDocuments, deleteDocument } from './services/api';
 import { 
   FileText, 
   Search, 
@@ -60,10 +60,15 @@ export default function App() {
     }
   };
 
-  const handleDocumentDeleted = (deletedId) => {
-    setDocuments((prev) => prev.filter((d) => d._id !== deletedId));
-    if (selectedDocId === deletedId) {
-      setSelectedDocId(null);
+  const handleDocumentDeleted = async (deletedId) => {
+    try {
+      await deleteDocument(deletedId);
+      setDocuments((prev) => prev.filter((d) => d._id !== deletedId));
+      if (selectedDocId === deletedId) {
+        setSelectedDocId(null);
+      }
+    } catch (err) {
+      alert('Failed to delete document from database: ' + err.message);
     }
   };
 

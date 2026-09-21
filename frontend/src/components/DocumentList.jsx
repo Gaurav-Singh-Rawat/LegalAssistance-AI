@@ -7,18 +7,12 @@ export default function DocumentList({ documents, onDocumentDeleted, onSelectDoc
     return null;
   }
 
-  const handleDelete = async (e, docId, docName) => {
+  const handleDelete = (e, docId, docName) => {
     e.stopPropagation();
-    if (!window.confirm(`Are you sure you want to delete "${docName}"?`)) {
-      return;
-    }
-    try {
-      await deleteDocument(docId);
+    if (window.confirm(`Are you sure you want to delete "${docName}"?`)) {
       if (onDocumentDeleted) {
         onDocumentDeleted(docId);
       }
-    } catch (err) {
-      alert('Failed to delete document: ' + err.message);
     }
   };
 
