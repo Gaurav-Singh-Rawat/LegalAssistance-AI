@@ -1,6 +1,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 let genAI = null;
+let embeddingsUnavailable = false;
 
 const getGenAIClient = () => {
   if (!genAI) {
@@ -24,30 +25,22 @@ const generateEmbedding = async (text) => {
     return new Array(768).fill(0);
   }
 
+  if (embeddingsUnavailable) {
+    return new Array(768).fill(0);
+  }
+
   const client = getGenAIClient();
 
-  // 1. Try text-embedding-004 first
+  // Use the current embedding model supported by the Gemini API.
   try {
-    const model = client.getGenerativeModel({ model: 'text-embedding-004' });
+    const model = client.getGenerativeModel({ model: 'gemini-embedding-001' });
     const result = await model.embedContent(cleanText);
     if (result && result.embedding && result.embedding.values) {
       return result.embedding.values;
     }
-  } catch (err1) {
-    console.warn(`ℹ️ [Embedding Model] text-embedding-004 unavailable, trying embedding-001...`);
-  }
-
-  // 2. Fallback to embedding-001
-  try {
-    const fallbackModel = client.getGenerativeModel({ model: 'embedding-001' });
-    const fallbackResult = await fallbackModel.embedContent(cleanText);
-    if (fallbackResult && fallbackResult.embedding && fallbackResult.embedding.values) {
-      return fallbackResult.embedding.values;
-    }
-  } catch (err2) {
-    console.warn(`⚠️ [Embedding Warning] Could not generate embeddings: ${err2.message}`);
-    // Return placeholder zero vector so upload and analysis still succeed
-    return new Array(768).fill(0);
+  } catch (error) {
+    embeddingsUnavailable = true;
+    console.warn(`⚠️ [Embedding Warning] Embeddings unavailable; continuing without new embeddings: ${error.message}`);
   }
 
   return new Array(768).fill(0);
@@ -72,12 +65,21 @@ const generateBatchEmbeddings = async (textArray) => {
 };
 
 const CANDIDATE_GENERATIVE_MODELS = [
+  process.env.GEMINI_MODEL,
   'gemini-3.6-flash',
-  'gemini-3.1-pro-preview',
-  'gemini-2.5-flash',
-  'gemini-2.5-pro',
-  'gemini-1.5-flash',
-];
+].filter(Boolean).filter((modelName, index, models) => models.indexOf(modelName) === index);
+
+const isRetryableGeminiError = (error) => {
+  const message = error?.message || '';
+  return message.includes('[503') || /high demand|temporarily unavailable/i.test(message);
+};
+
+const isQuotaError = (error) => {
+  const message = error?.message || '';
+  return message.includes('[429') || /quota exceeded|quota limit|rate limit/i.test(message);
+};
+
+const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 /**
  * Robust helper to generate content trying candidate model names
@@ -91,7 +93,7 @@ const generateWithModelFallback = async (prompt, isJson = false) => {
       const config = {
         temperature: isJson ? 0.2 : 0.1,
       };
-      if (isJson && modelName.startsWith('gemini-1.5')) {
+      if (isJson) {
         config.responseMimeType = 'application/json';
       }
 
@@ -100,10 +102,27 @@ const generateWithModelFallback = async (prompt, isJson = false) => {
         generationConfig: config,
       });
 
-      const result = await model.generateContent(prompt);
-      if (result && result.response) {
-        console.log(`✅ [Gemini AI] Successfully used model: ${modelName}`);
-        return result.response.text();
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        try {
+          const result = await model.generateContent(prompt);
+          if (result && result.response) {
+            console.log(`✅ [Gemini AI] Successfully used model: ${modelName}`);
+            return result.response.text();
+          }
+        } catch (err) {
+          lastError = err;
+          if (isQuotaError(err)) {
+            console.warn(`⚠️ [Gemini Quota] Quota exceeded for model '${modelName}'. Stopping retries.`);
+            break;
+          }
+          if (!isRetryableGeminiError(err) || attempt === 3) {
+            break;
+          }
+
+          const delay = attempt * 1500;
+          console.warn(`⚠️ [Gemini Retry] Model '${modelName}' is temporarily busy. Retrying in ${delay}ms...`);
+          await wait(delay);
+        }
       }
     } catch (err) {
       console.warn(`⚠️ [Model Fallback] Model '${modelName}' failed (${err.message}). Trying next candidate...`);
@@ -190,6 +209,9 @@ Required JSON output structure:
     return analysis;
   } catch (error) {
     console.error('❌ [Gemini Document Analysis Error]:', error.message);
+    if (isQuotaError(error)) {
+      throw new Error('Gemini API quota exceeded. Wait for the quota to reset or enable billing/use another API key.');
+    }
     throw new Error(`Gemini legal analysis failed: ${error.message}`);
   }
 };

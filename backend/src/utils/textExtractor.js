@@ -5,15 +5,15 @@ const path = require('path');
 
 /**
  * Extracts text and metadata from a PDF or DOCX file.
- * @param {string} filePath - Absolute path to the document on disk.
+ * @param {string|Buffer} fileSource - Absolute path or in-memory file buffer.
  * @param {string} fileType - 'pdf' or 'docx'.
  * @returns {Promise<{text: string, pageCount: number, pages: Array<{pageNumber: number, text: string}>}>}
  */
-const extractTextFromFile = async (filePath, fileType) => {
-  const ext = fileType ? fileType.toLowerCase() : path.extname(filePath).toLowerCase().replace('.', '');
+const extractTextFromFile = async (fileSource, fileType) => {
+  const ext = fileType ? fileType.toLowerCase() : path.extname(fileSource).toLowerCase().replace('.', '');
 
   if (ext === 'pdf') {
-    const dataBuffer = fs.readFileSync(filePath);
+    const dataBuffer = Buffer.isBuffer(fileSource) ? fileSource : fs.readFileSync(fileSource);
     
     // Track per-page text if available
     const pages = [];
@@ -48,7 +48,9 @@ const extractTextFromFile = async (filePath, fileType) => {
   }
 
   if (ext === 'docx' || ext === 'doc') {
-    const result = await mammoth.extractRawText({ path: filePath });
+    const result = await mammoth.extractRawText(
+      Buffer.isBuffer(fileSource) ? { buffer: fileSource } : { path: fileSource }
+    );
     const fullText = result.value || '';
     
     // Estimate page count for DOCX (roughly 500 words / 3000 chars per standard legal page)

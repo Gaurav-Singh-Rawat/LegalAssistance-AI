@@ -27,6 +27,13 @@ const askDocumentQuestion = async (req, res) => {
       });
     }
 
+    if (doc.user && (!req.user || doc.user.toString() !== req.user._id.toString())) {
+      return res.status(404).json({
+        success: false,
+        message: 'Document not found.',
+      });
+    }
+
     // 1. Retrieve top-K relevant chunks using RAG Vector Search
     const relevantChunks = await retrieveRelevantChunks(doc._id, question, 4);
 

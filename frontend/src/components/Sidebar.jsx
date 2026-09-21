@@ -16,7 +16,10 @@ export default function Sidebar({
   selectedDocId, 
   onSelectDocument, 
   onOpenUpload, 
-  onDocumentDeleted 
+  onDocumentDeleted,
+  currentUser,
+  onOpenAuth,
+  onLogout,
 }) {
   return (
     <aside className="app-sidebar">
@@ -97,6 +100,22 @@ export default function Sidebar({
 
       {/* Sidebar Footer Security Note */}
       <div className="sidebar-footer">
+        {currentUser ? (
+          <div className="sidebar-user-profile">
+            <div className="sidebar-user-avatar">{currentUser.name?.charAt(0).toUpperCase()}</div>
+            <div className="sidebar-user-details">
+              <strong>{currentUser.name}</strong>
+              <span>{currentUser.email}</span>
+            </div>
+            <button className="sidebar-logout-btn" onClick={onLogout} title="Sign out">
+              Sign out
+            </button>
+          </div>
+        ) : (
+          <button className="sidebar-auth-btn" onClick={onOpenAuth}>
+            Sign In / Register
+          </button>
+        )}
         <div className="security-badge">
           <ShieldCheck size={14} />
           <span>Strict Document Grounding</span>

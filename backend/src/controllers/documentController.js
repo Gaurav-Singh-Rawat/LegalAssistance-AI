@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Document = require('../models/Document');
 const DocumentChunk = require('../models/DocumentChunk');
+const { uploadBuffer, deleteFile } = require('../utils/gridfs');
 const { extractTextFromFile } = require('../utils/textExtractor');
 const { chunkDocumentText } = require('../utils/chunker');
 const { generateBatchEmbeddings, analyzeLegalDocument } = require('../services/geminiService');
@@ -19,17 +20,18 @@ const uploadDocument = async (req, res) => {
     });
   }
 
-  const { originalname, filename, path: filePath, size } = req.file;
+  const { originalname, buffer, mimetype, size } = req.file;
   const ext = path.extname(originalname).toLowerCase().replace('.', '');
   const fileType = ext === 'doc' ? 'docx' : ext;
+  let storageId = null;
+  let newDoc = null;
 
   try {
     // 1. Extract text and pages
     console.log(`📄 [Document Processing] Extracting text from: ${originalname}`);
-    const extractionResult = await extractTextFromFile(filePath, fileType);
+    const extractionResult = await extractTextFromFile(buffer, fileType);
 
     if (!extractionResult.text || extractionResult.text.trim().length === 0) {
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       return res.status(422).json({
         success: false,
         message: 'Could not extract any readable text from this document. Please ensure it is not a scanned image.',
@@ -40,16 +42,30 @@ const uploadDocument = async (req, res) => {
     console.log(`🧩 [Document Processing] Chunking document text...`);
     const chunkData = chunkDocumentText(extractionResult.pages);
 
-    // 3. Create initial Document in Database (status: processing)
-    const newDoc = await Document.create({
+    // 3. Create the metadata record before storing the file so GridFS can reference it.
+    newDoc = new Document({
+      user: req.user?._id || null,
       originalName: originalname,
-      fileName: filename,
+      fileName: originalname,
       fileType: fileType,
       fileSize: size,
-      filePath: filePath,
+      storageId: null,
       pageCount: extractionResult.pageCount || 1,
       status: 'processing',
     });
+    await newDoc.save();
+
+    storageId = await uploadBuffer({
+      buffer,
+      filename: `${newDoc._id}-${originalname}`,
+      contentType: mimetype,
+      metadata: {
+        documentId: newDoc._id.toString(),
+        userId: req.user?._id?.toString() || null,
+      },
+    });
+    newDoc.storageId = storageId;
+    await newDoc.save();
 
     // 4. Generate Embeddings & AI Analysis
     let embeddings = [];
@@ -119,8 +135,16 @@ const uploadDocument = async (req, res) => {
     });
   } catch (error) {
     console.error(`❌ [Document Processing Error]:`, error);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    if (storageId) {
+      try {
+        await deleteFile(storageId);
+      } catch (cleanupError) {
+        console.error(`❌ [GridFS Cleanup Error]:`, cleanupError.message);
+      }
+    }
+    if (newDoc?._id) {
+      await DocumentChunk.deleteMany({ documentId: newDoc._id }).catch(() => {});
+      await Document.findByIdAndDelete(newDoc._id).catch(() => {});
     }
     res.status(500).json({
       success: false,
@@ -141,6 +165,10 @@ const reanalyzeDocument = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Document not found' });
     }
 
+    if (doc.user && (!req.user || doc.user.toString() !== req.user._id.toString())) {
+      return res.status(403).json({ success: false, message: 'You do not have access to this document.' });
+    }
+
     const chunks = await DocumentChunk.find({ documentId: doc._id }).sort({ chunkIndex: 1 });
     if (!chunks || chunks.length === 0) {
       return res.status(400).json({ success: false, message: 'No text chunks found for this document.' });
@@ -148,13 +176,15 @@ const reanalyzeDocument = async (req, res) => {
 
     console.log(`🔄 [Re-Analysis] Re-analyzing document: ${doc.originalName}...`);
 
-    // 1. Generate embeddings if empty
+    // 1. Regenerate embeddings only when this document does not already have them.
     const chunkTexts = chunks.map((c) => c.text);
-    const embeddings = await generateBatchEmbeddings(chunkTexts);
-
-    for (let i = 0; i < chunks.length; i++) {
-      chunks[i].embedding = embeddings[i] || [];
-      await chunks[i].save();
+    const needsEmbeddings = chunks.some((chunk) => !Array.isArray(chunk.embedding) || chunk.embedding.length === 0);
+    if (needsEmbeddings) {
+      const embeddings = await generateBatchEmbeddings(chunkTexts);
+      for (let i = 0; i < chunks.length; i++) {
+        chunks[i].embedding = embeddings[i] || [];
+        await chunks[i].save();
+      }
     }
 
     // 2. Full text analysis with Gemini
@@ -191,10 +221,12 @@ const reanalyzeDocument = async (req, res) => {
  */
 const getDocuments = async (req, res) => {
   try {
-    const documents = await Document.find()
+    const documents = req.user
+      ? await Document.find({ user: req.user._id })
       .select('-__v')
       .sort({ createdAt: -1 })
-      .limit(20);
+      .limit(20)
+      : [];
 
     res.status(200).json({
       success: true,
@@ -219,6 +251,13 @@ const getDocumentById = async (req, res) => {
     const doc = await Document.findById(req.params.id);
 
     if (!doc) {
+      return res.status(404).json({
+        success: false,
+        message: 'Document not found',
+      });
+    }
+
+    if (doc.user && (!req.user || doc.user.toString() !== req.user._id.toString())) {
       return res.status(404).json({
         success: false,
         message: 'Document not found',
@@ -257,6 +296,15 @@ const deleteDocument = async (req, res) => {
         message: 'Document not found',
       });
     }
+
+    if (doc.user && (!req.user || doc.user.toString() !== req.user._id.toString())) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this document.',
+      });
+    }
+
+    await deleteFile(doc.storageId);
 
     if (doc.filePath && fs.existsSync(doc.filePath)) {
       fs.unlinkSync(doc.filePath);

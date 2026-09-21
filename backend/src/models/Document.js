@@ -63,7 +63,11 @@ const documentSchema = new mongoose.Schema(
     },
     filePath: {
       type: String,
-      required: true,
+      required: false,
+    },
+    storageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
     },
     pageCount: {
       type: Number,

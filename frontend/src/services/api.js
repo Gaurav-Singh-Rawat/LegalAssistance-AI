@@ -4,6 +4,35 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
+export const getToken = () => localStorage.getItem('lexi_token');
+
+export const authHeaders = () => {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+export const registerUser = async ({ name, email, password }) => {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to create account');
+  return data;
+};
+
+export const loginUser = async ({ email, password }) => {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to sign in');
+  return data;
+};
+
 export const checkHealth = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/health`);
@@ -28,6 +57,7 @@ export const uploadDocument = async (file) => {
 
   const response = await fetch(`${API_BASE_URL}/documents/upload`, {
     method: 'POST',
+    headers: authHeaders(),
     body: formData,
   });
 
@@ -42,7 +72,7 @@ export const uploadDocument = async (file) => {
  * Fetch list of all uploaded documents
  */
 export const fetchDocuments = async () => {
-  const response = await fetch(`${API_BASE_URL}/documents`);
+  const response = await fetch(`${API_BASE_URL}/documents`, { headers: authHeaders() });
   const data = await response.json();
   if (!response.ok) {
     throw new Error(data.message || 'Failed to fetch documents');
@@ -54,7 +84,7 @@ export const fetchDocuments = async () => {
  * Fetch document details by ID
  */
 export const fetchDocumentById = async (id) => {
-  const response = await fetch(`${API_BASE_URL}/documents/${id}`);
+  const response = await fetch(`${API_BASE_URL}/documents/${id}`, { headers: authHeaders() });
   const data = await response.json();
   if (!response.ok) {
     throw new Error(data.message || 'Failed to fetch document');
@@ -72,6 +102,7 @@ export const askDocumentQuestion = async (documentId, question) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders(),
     },
     body: JSON.stringify({ question }),
   });
@@ -90,6 +121,7 @@ export const askDocumentQuestion = async (documentId, question) => {
 export const reanalyzeDocument = async (documentId) => {
   const response = await fetch(`${API_BASE_URL}/documents/${documentId}/reanalyze`, {
     method: 'POST',
+    headers: authHeaders(),
   });
 
   const data = await response.json();
@@ -105,6 +137,7 @@ export const reanalyzeDocument = async (documentId) => {
 export const deleteDocument = async (id) => {
   const response = await fetch(`${API_BASE_URL}/documents/${id}`, {
     method: 'DELETE',
+    headers: authHeaders(),
   });
   const data = await response.json();
   if (!response.ok) {

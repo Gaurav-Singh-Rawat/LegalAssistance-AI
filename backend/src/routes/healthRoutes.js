@@ -25,9 +25,13 @@ router.get('/test-gemini', async (req, res) => {
 
     const genAI = new GoogleGenerativeAI(apiKey.trim());
     
-    // Direct test with gemini-2.5-flash
+    // Test the same current models used by the document analysis service.
     const testResults = {};
-    const candidateNames = ['gemini-2.5-flash', 'models/gemini-2.5-flash', 'gemini-2.5-pro', 'models/gemini-2.5-pro'];
+    const candidateNames = [
+      process.env.GEMINI_MODEL,
+      'gemini-3.6-flash',
+      'gemini-2.5-flash',
+    ].filter(Boolean);
 
     for (const name of candidateNames) {
       try {

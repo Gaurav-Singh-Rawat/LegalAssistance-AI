@@ -3,6 +3,7 @@ import Header from './components/Header';
 import DisclaimerBanner from './components/DisclaimerBanner';
 import Sidebar from './components/Sidebar';
 import UploadModal from './components/UploadModal';
+import AuthModal from './components/AuthModal';
 import DocumentList from './components/DocumentList';
 import DocumentWorkspace from './components/DocumentWorkspace';
 import { checkHealth, fetchDocuments, deleteDocument } from './services/api';
@@ -23,8 +24,21 @@ export default function App() {
   const [documents, setDocuments] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   useEffect(() => {
+    const storedUser = localStorage.getItem('lexi_user');
+    const storedToken = localStorage.getItem('lexi_token');
+    if (storedUser && storedToken) {
+      try {
+        setCurrentUser(JSON.parse(storedUser));
+      } catch {
+        localStorage.removeItem('lexi_user');
+        localStorage.removeItem('lexi_token');
+      }
+    }
+
     async function loadData() {
       const health = await checkHealth();
       setBackendStatus({
@@ -38,6 +52,31 @@ export default function App() {
     }
     loadData();
   }, []);
+
+  const handleAuthSuccess = (userData, token) => {
+    localStorage.setItem('lexi_token', token);
+    localStorage.setItem('lexi_user', JSON.stringify(userData));
+    setCurrentUser(userData);
+    setSelectedDocId(null);
+    loadUploadedDocuments();
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('lexi_token');
+    localStorage.removeItem('lexi_user');
+    setCurrentUser(null);
+    setDocuments([]);
+    setSelectedDocId(null);
+  };
+
+  const handleOpenUpload = () => {
+    if (!currentUser) {
+      setIsAuthOpen(true);
+      return;
+    }
+
+    setIsUploadOpen(true);
+  };
 
   const loadUploadedDocuments = async () => {
     setLoadingDocs(true);
@@ -81,8 +120,11 @@ export default function App() {
         onSelectDocument={(doc) => {
           setSelectedDocId(doc ? doc._id : null);
         }}
-        onOpenUpload={() => setIsUploadOpen(true)}
+        onOpenUpload={handleOpenUpload}
         onDocumentDeleted={handleDocumentDeleted}
+        currentUser={currentUser}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
@@ -115,7 +157,7 @@ export default function App() {
                   </p>
 
                   <div className="hero-cta-group">
-                    <button className="btn btn-primary btn-lg" onClick={() => setIsUploadOpen(true)}>
+                    <button className="btn btn-primary btn-lg" onClick={handleOpenUpload}>
                       <Upload size={16} />
                       <span>Upload Document</span>
                     </button>
@@ -199,6 +241,11 @@ export default function App() {
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
         onUploadSuccess={handleUploadSuccess}
+      />
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
       />
     </div>
   );
