@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const connectDB = require('./config/db');
 const healthRoutes = require('./routes/healthRoutes');
 const documentRoutes = require('./routes/documentRoutes');
+const { generalLimiter } = require('./middleware/rateLimiter');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -21,6 +22,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
+
+// Apply General Rate Limiter to all API routes
+app.use('/api', generalLimiter);
 
 // Static Uploads Folder
 app.use('/uploads', express.static('uploads'));

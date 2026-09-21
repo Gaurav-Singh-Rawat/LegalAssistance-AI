@@ -14,13 +14,29 @@ A complete, beginner-friendly development log and guide for the **GenAI-Powered 
 ## 🛠️ Technology Stack
 | Layer | Technology | Purpose |
 | :--- | :--- | :--- |
-| **Frontend** | React (Vite) + Modern CSS Design System | Fast, modern, responsive glassmorphism user interface |
-| **Backend** | Node.js + Express.js | REST API, document processing, auth, and AI orchestration |
+| **Frontend** | React (Vite) + Clean Legal-Tech Design System | Minimalist, serious dark navy/charcoal UI |
+| **Backend** | Node.js + Express.js + Rate Limiting | REST API, document processing, auth, and AI orchestration |
 | **Database** | MongoDB Atlas | Storing users, documents, chunks, and metadata |
 | **Vector Search** | MongoDB Atlas Vector Search | High-speed semantic retrieval of relevant document chunks |
-| **AI / LLM** | Google Gemini API (`gemini-1.5-flash`) | Summaries, clause extraction, grounded answering |
-| **Embeddings** | Gemini `text-embedding-004` | Generating 768-dimensional vector embeddings for text chunks |
+| **AI / LLM** | Google Gemini API (`gemini-3.6-flash`) | Summaries, clause extraction, grounded answering |
+| **Embeddings** | Gemini `text-embedding-004` / `embedding-001` | Generating vector embeddings for text chunks |
+| **Security & Limits** | `express-rate-limit` + Client Debounce | Tiered IP-based rate limiting & anti-spam cooldowns |
 | **Authentication** | JSON Web Tokens (JWT) + bcryptjs | Secure user signup and authenticated document management |
+
+---
+
+## 🛡️ Dual Rate-Limiting Architecture
+
+### 1. Server-Side Limits (`backend/src/middleware/rateLimiter.js`)
+* **General API Limiter (`/api/*`):** Max 120 requests per 15 minutes per IP.
+* **Document Upload Limiter (`POST /api/documents/upload`):** Max 15 uploads per 15 minutes per IP.
+* **AI Q&A / Re-Analyze Limiter (`POST /api/documents/:id/ask`, `reanalyze`):** Max 30 requests per 15 minutes per IP.
+* Returns standard HTTP `429 Too Many Requests` with a clear message and `retryAfterSeconds`.
+
+### 2. Client-Side Throttling & Cooldowns (`frontend/src/`)
+* **Anti-Spam Cooldown:** 2-second client cooldown on the Q&A submit button (`Wait (2s)`).
+* **Graceful 429 Handling:** Displays friendly warning toasts instead of crashing the interface.
+* **Upload Lock:** Strict boolean upload lock preventing double-submissions.
 
 ---
 
@@ -34,7 +50,7 @@ legal-assistance/
 ├── backend/                  # Node.js + Express REST API
 │   ├── .env.example          # Environment variable template
 │   ├── .env                  # Local environment configuration
-│   ├── package.json          # Express, Mongoose, Gemini, Multer, PDF/DOCX dependencies
+│   ├── package.json          # Express, Mongoose, Gemini, Multer, Rate Limiting dependencies
 │   ├── uploads/              # Local storage for uploaded PDF/DOCX documents
 │   └── src/
 │       ├── config/
@@ -43,14 +59,15 @@ legal-assistance/
 │       │   ├── documentController.js # Upload, chunk, embed, analyze, retrieve, and delete logic
 │       │   └── qaController.js       # Grounded RAG question answering controller
 │       ├── middleware/
-│       │   ├── errorHandler.js # Global 404 & 500 error handlers
+│       │   ├── errorHandler.js   # Global 404 & 500 error handlers
+│       │   ├── rateLimiter.js    # Tiered IP rate limiting (General, Upload, AI)
 │       │   └── uploadMiddleware.js # Multer file upload & validation (PDF/DOCX max 10MB)
 │       ├── models/
 │       │   ├── User.js          # User schema with bcrypt password hashing
 │       │   ├── Document.js      # Structured document analysis schema
-│       │   └── DocumentChunk.js # Text chunks with 768-dim embeddings for RAG
+│       │   └── DocumentChunk.js # Text chunks with embeddings for RAG
 │       ├── routes/
-│       │   ├── healthRoutes.js   # /api/health monitoring endpoint
+│       │   ├── healthRoutes.js   # /api/health and /api/test-gemini monitoring endpoints
 │       │   └── documentRoutes.js # /api/documents (upload, reanalyze, ask, list, fetch, delete)
 │       ├── services/
 │       │   ├── geminiService.js # Google Gemini AI API (embeddings, structured analysis, Q&A)
@@ -66,65 +83,17 @@ legal-assistance/
     ├── vite.config.js        # Vite config with API proxy to localhost:5000
     └── src/
         ├── components/
-        │   ├── Header.jsx           # Top navigation and live backend status indicator
-        │   ├── DisclaimerBanner.jsx # Prominent legal information notice banner
-        │   ├── UploadModal.jsx      # Drag & drop upload modal with progress indicators
-        │   ├── DocumentList.jsx     # Dashboard list of uploaded documents
-        │   └── DocumentWorkspace.jsx # 6-Tab interactive analysis & grounded Q&A workspace
+        │   ├── Header.jsx           # Minimalist legal status bar
+        │   ├── DisclaimerBanner.jsx # Discrete legal information notice banner
+        │   ├── Sidebar.jsx          # Left navigation bar with past documents & active highlighting
+        │   ├── UploadModal.jsx      # Clean upload modal with progress indicators
+        │   ├── DocumentList.jsx     # Structured legal documents table
+        │   └── DocumentWorkspace.jsx # 6-Tab analysis & grounded Q&A workspace
         ├── services/
         │   └── api.js               # Centralized backend API client
-        ├── App.jsx                  # Main application UI layout & navigation
-        ├── index.css                # Modern dark-mode glassmorphism design system
+        ├── App.jsx                  # Main application shell with Sidebar layout
+        ├── index.css                # Polished legal-tech design system (Dark navy/charcoal)
         └── main.jsx                 # React root renderer
-```
-
----
-
-## 🔑 Environment Variables Reference
-
-Create a `.env` file inside `backend/`:
-
-```env
-# Server Port
-PORT=5000
-
-# Client URL (for CORS)
-CLIENT_URL=http://localhost:5173
-
-# MongoDB Atlas Connection URI
-MONGODB_URI=mongodb+srv://<username>:<password>@h2s.n2clbbx.mongodb.net/LegalAI?retryWrites=true&w=majority&appName=h2s
-
-# Google Gemini API Key (from https://aistudio.google.com/)
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# JWT Authentication Secret
-JWT_SECRET=dev_jwt_secret_key_1234567890_legal_assistant
-JWT_EXPIRES_IN=7d
-```
-
----
-
-## 🔍 MongoDB Atlas Vector Search Index Definition
-
-- **Index Name:** `vector_index`
-- **Database:** `LegalAI`
-- **Collection:** `documentchunks`
-
-```json
-{
-  "fields": [
-    {
-      "type": "vector",
-      "path": "embedding",
-      "numDimensions": 768,
-      "similarity": "cosine"
-    },
-    {
-      "type": "filter",
-      "path": "documentId"
-    }
-  ]
-}
 ```
 
 ---
@@ -134,49 +103,34 @@ JWT_EXPIRES_IN=7d
 ### Phase 1: Local Foundation & Project Scaffolding `[COMPLETED ✅]`
 - [x] Initialized project roadmap and step-by-step documentation (`STEPS.md`).
 - [x] Initialized `backend/` folder with Express, CORS, logging, and health route.
-- [x] Created `frontend/` folder with Vite, React 18, dark-mode glassmorphism design system.
+- [x] Created `frontend/` folder with Vite, React 18, clean design system.
 
 ### Phase 2: Database Layer & Data Models `[COMPLETED ✅]`
 - [x] Configured Mongoose connection in `backend/src/config/db.js`.
-- [x] Created `User.js` model with automatic `bcrypt` password hashing.
-- [x] Created `Document.js` model with full structured legal schemas.
-- [x] Created `DocumentChunk.js` model with 768-dimensional vector embedding arrays.
+- [x] Created `User.js`, `Document.js`, and `DocumentChunk.js` schemas.
 
 ### Phase 3: Document Upload & Parsing `[COMPLETED ✅]`
-- [x] Implemented `uploadMiddleware.js` (Multer disk storage, PDF/DOCX format validator, 10MB size limit).
-- [x] Built `textExtractor.js` with `pdf-parse` for PDFs and `mammoth` for DOCX.
-- [x] Built `chunker.js` (800-char window, 150-char overlap, sentence preservation, clause heading detection).
+- [x] Implemented `uploadMiddleware.js` (PDF/DOCX max 10MB limit).
+- [x] Built `textExtractor.js` (`pdf-parse` & `mammoth`) and `chunker.js`.
+- [x] Fixed permanent deletion flow across MongoDB and local disk storage.
 
 ### Phase 4: Gemini AI Integration & RAG Engine `[COMPLETED ✅]`
-- [x] Integrated `@google/generative-ai` with `gemini-1.5-flash` and `text-embedding-004`.
-- [x] Automated batch vector embeddings generation during document upload.
-- [x] Created structured legal analysis prompt for summary, key clauses, obligations, risks, and lawyer checklists.
-- [x] Implemented MongoDB Vector Search retrieval (`$vectorSearch`) in `ragService.js`.
-- [x] Created grounded Q&A endpoint (`POST /api/documents/:id/ask`) with page/clause citations and anti-hallucination guardrails.
+- [x] Integrated `@google/generative-ai` with `gemini-3.6-flash`.
+- [x] Automated batch vector embeddings and MongoDB Vector Search retrieval (`$vectorSearch`).
+- [x] Grounded Q&A engine with anti-hallucination guardrails and page citations.
 
-### Phase 5: Frontend Document Analysis Workspace `[COMPLETED ✅]`
-- [x] Interactive `UploadModal` with drag-and-drop & live progress.
-- [x] Document Dashboard with recent uploads, status badges, and deletion.
-- [x] Multi-tab `DocumentWorkspace.jsx`:
-  1. Plain-English Executive Summary
-  2. Key Clauses with Simplified Meaning & Excerpts
-  3. Obligations & Deadlines
-  4. Potential Risks & Red Flags
-  5. Actionable Lawyer Discussion Checklist
-  6. Grounded Q&A Chat with Source Citation Badges & Suggested Inquiries
+### Phase 5: Legal-Tech UI/UX Redesign `[COMPLETED ✅]`
+- [x] Built left **Sidebar** displaying past uploaded documents.
+- [x] Clean homepage hero with concise value proposition and structured documents table.
+- [x] 6-Tab document workspace (Overview, Clauses, Obligations, Risks, Checklist, Q&A).
+- [x] Professional dark navy/charcoal aesthetic with restrained indigo accent.
 
-### Phase 6: Authentication & Security `[NEXT ⏭️]`
+### Phase 6: Rate Limiting, Authentication & Security `[IN PROGRESS 🔄]`
+- [x] Implemented tiered server-side IP rate limiting (`express-rate-limit`).
+- [x] Implemented client-side debounce cooldowns and friendly 429 alerts.
 - [ ] User registration and login endpoints (`POST /api/auth/register`, `POST /api/auth/login`).
 - [ ] Password hashing with `bcryptjs`.
-- [ ] JWT authentication middleware for protected document routes.
-
-### Phase 7: Testing & Hallucination Guardrails `[PLANNED]`
-- [ ] Test with sample legal agreements (NDA, Lease, Employment Contract).
-- [ ] Verify accuracy of citations and fallback responses.
-
-### Phase 8: Deployment Guide `[PLANNED]`
-- [ ] Deploy Backend to Render or Railway.
-- [ ] Deploy Frontend to Vercel.
+- [ ] JWT authentication middleware.
 
 ---
 

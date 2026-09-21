@@ -24,10 +24,19 @@ export default function DocumentWorkspace({ documentId, onBack }) {
   const [activeTab, setActiveTab] = useState('summary');
   const [reanalyzing, setReanalyzing] = useState(false);
 
-  // Q&A Chat State
+  // Q&A Chat State & Client-Side Rate Limiting
   const [question, setQuestion] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [asking, setAsking] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+
+  useEffect(() => {
+    let timer;
+    if (cooldownSeconds > 0) {
+      timer = setTimeout(() => setCooldownSeconds((prev) => prev - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [cooldownSeconds]);
 
   useEffect(() => {
     loadDocument();
@@ -48,6 +57,7 @@ export default function DocumentWorkspace({ documentId, onBack }) {
   };
 
   const handleReanalyze = async () => {
+    if (reanalyzing) return;
     setReanalyzing(true);
     try {
       const res = await reanalyzeDocument(documentId);
@@ -55,7 +65,7 @@ export default function DocumentWorkspace({ documentId, onBack }) {
         setDoc(res.data);
       }
     } catch (err) {
-      alert('Re-analysis failed: ' + err.message);
+      alert(err.message.includes('limit') ? '⚠️ Rate Limit: ' + err.message : 'Re-analysis failed: ' + err.message);
     } finally {
       setReanalyzing(false);
     }
@@ -63,7 +73,7 @@ export default function DocumentWorkspace({ documentId, onBack }) {
 
   const handleAskQuestion = async (e) => {
     e?.preventDefault();
-    if (!question.trim() || asking) return;
+    if (!question.trim() || asking || cooldownSeconds > 0) return;
 
     const userQ = question.trim();
     setQuestion('');
@@ -82,16 +92,24 @@ export default function DocumentWorkspace({ documentId, onBack }) {
           timestamp: new Date(),
         };
         setChatHistory((prev) => [...prev, aiMsg]);
+        // Client-side 2-second cooldown to prevent rapid spamming
+        setCooldownSeconds(2);
       }
     } catch (err) {
+      const isRateLimit = err.message.toLowerCase().includes('limit') || err.message.includes('429');
       const errorMsg = {
         sender: 'ai',
-        text: `Error: ${err.message || 'Could not retrieve answer from AI.'}`,
+        text: isRateLimit
+          ? `⚠️ Rate limit reached: ${err.message}. Please wait a moment before sending another inquiry.`
+          : `Error: ${err.message || 'Could not retrieve answer from AI.'}`,
         citations: [],
         timestamp: new Date(),
         isError: true,
       };
       setChatHistory((prev) => [...prev, errorMsg]);
+      if (isRateLimit) {
+        setCooldownSeconds(10);
+      }
     } finally {
       setAsking(false);
     }
@@ -495,10 +513,10 @@ export default function DocumentWorkspace({ documentId, onBack }) {
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={!question.trim() || asking}
+                  disabled={!question.trim() || asking || cooldownSeconds > 0}
                 >
                   <Send size={14} />
-                  <span>Ask</span>
+                  <span>{cooldownSeconds > 0 ? `Wait (${cooldownSeconds}s)` : 'Ask'}</span>
                 </button>
               </form>
             </div>

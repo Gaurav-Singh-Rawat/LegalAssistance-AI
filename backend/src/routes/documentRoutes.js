@@ -9,9 +9,10 @@ const {
   deleteDocument,
 } = require('../controllers/documentController');
 const { askDocumentQuestion } = require('../controllers/qaController');
+const { uploadLimiter, aiLimiter } = require('../middleware/rateLimiter');
 
-// Upload endpoint
-router.post('/upload', upload.single('file'), uploadDocument);
+// Upload endpoint with upload rate limiter (max 15 uploads / 15 mins)
+router.post('/upload', uploadLimiter, upload.single('file'), uploadDocument);
 
 // Get list of all documents
 router.get('/', getDocuments);
@@ -19,11 +20,11 @@ router.get('/', getDocuments);
 // Get single document by ID
 router.get('/:id', getDocumentById);
 
-// Re-analyze existing document with Gemini AI
-router.post('/:id/reanalyze', reanalyzeDocument);
+// Re-analyze existing document with Gemini AI (protected by AI limiter)
+router.post('/:id/reanalyze', aiLimiter, reanalyzeDocument);
 
-// Ask question about document using RAG + Gemini
-router.post('/:id/ask', askDocumentQuestion);
+// Ask question about document using RAG + Gemini (protected by AI limiter)
+router.post('/:id/ask', aiLimiter, askDocumentQuestion);
 
 // Delete document by ID
 router.delete('/:id', deleteDocument);
