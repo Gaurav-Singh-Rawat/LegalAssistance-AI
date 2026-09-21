@@ -16,6 +16,9 @@ const allowedOrigins = (process.env.CLIENT_URL || '*')
   .map((origin) => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
+// Render forwards the original client IP in X-Forwarded-For.
+app.set('trust proxy', 1);
+
 // Initialize Database connection
 connectDB();
 
