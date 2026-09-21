@@ -1,23 +1,16 @@
 import React from 'react';
-import { Scale, Activity } from 'lucide-react';
 
 export default function Header({ backendStatus }) {
   return (
-    <header className="header-wrapper glass-panel">
-      <div className="brand">
-        <div className="brand-icon">
-          <Scale size={22} />
-        </div>
-        <div>
-          <h1 className="brand-title">LexiAssist</h1>
-          <p className="brand-subtitle">GenAI Legal Information Assistant</p>
-        </div>
+    <header className="app-header">
+      <div className="header-breadcrumbs">
+        <span className="header-subtitle">Legal Information & Document Workspace</span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <div className={`status-pill ${backendStatus.online ? 'status-online' : 'status-offline'}`}>
-          <Activity size={12} />
-          <span>API: {backendStatus.online ? 'Online' : 'Offline'}</span>
+      <div className="header-meta">
+        <div className="status-indicator">
+          <span className={`status-dot ${backendStatus.online ? 'status-dot-online' : 'status-dot-offline'}`} />
+          <span className="status-text">{backendStatus.online ? 'System Ready' : 'Backend Offline'}</span>
         </div>
       </div>
     </header>

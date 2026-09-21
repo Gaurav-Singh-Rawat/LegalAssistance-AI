@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   FileText,
-  Sparkles,
   ShieldAlert,
   Calendar,
   CheckSquare,
@@ -9,15 +8,13 @@ import {
   ArrowLeft,
   RefreshCw,
   Send,
-  HelpCircle,
   AlertTriangle,
-  Layers,
   Clock,
   BookOpen,
-  Info,
   Loader2,
-  ChevronDown,
-  ChevronUp
+  ExternalLink,
+  ChevronRight,
+  Info
 } from 'lucide-react';
 import { fetchDocumentById, askDocumentQuestion, reanalyzeDocument } from '../services/api';
 
@@ -70,8 +67,7 @@ export default function DocumentWorkspace({ documentId, onBack }) {
 
     const userQ = question.trim();
     setQuestion('');
-    
-    // Add user message to thread immediately
+
     const userMsg = { sender: 'user', text: userQ, timestamp: new Date() };
     setChatHistory((prev) => [...prev, userMsg]);
     setAsking(true);
@@ -103,20 +99,22 @@ export default function DocumentWorkspace({ documentId, onBack }) {
 
   if (loading) {
     return (
-      <div className="glass-panel workspace-loading">
-        <Loader2 size={32} className="spin" style={{ color: 'var(--primary-light)' }} />
-        <p style={{ marginTop: '0.75rem', color: 'var(--text-muted)' }}>Loading document analysis...</p>
+      <div className="workspace-loading-state">
+        <Loader2 size={24} className="spin text-accent" />
+        <p className="loading-text">Loading document data...</p>
       </div>
     );
   }
 
   if (!doc) {
     return (
-      <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
-        <AlertTriangle size={36} style={{ color: '#ef4444', margin: '0 auto' }} />
-        <h3 style={{ marginTop: '0.5rem' }}>Document Not Found</h3>
+      <div className="workspace-not-found">
+        <AlertTriangle size={32} className="text-warning" />
+        <h3>Document Not Found</h3>
+        <p className="text-muted">The requested document could not be retrieved.</p>
         <button className="btn btn-secondary" onClick={onBack} style={{ marginTop: '1rem' }}>
-          <ArrowLeft size={16} /> Back to Dashboard
+          <ArrowLeft size={14} />
+          <span>Return to Documents</span>
         </button>
       </div>
     );
@@ -125,407 +123,388 @@ export default function DocumentWorkspace({ documentId, onBack }) {
   const hasAnalysis = doc.summary || (doc.keyClauses && doc.keyClauses.length > 0);
 
   return (
-    <div className="workspace-container">
-      {/* Top Breadcrumb & Controls */}
-      <div className="workspace-topbar glass-panel">
-        <button className="btn btn-secondary btn-sm" onClick={onBack}>
-          <ArrowLeft size={15} /> Back to Dashboard
-        </button>
-
-        <div className="doc-meta-header">
-          <div className="doc-meta-title-row">
-            <div className="doc-badge-type">{doc.fileType.toUpperCase()}</div>
-            <h2 className="workspace-doc-title" title={doc.originalName}>
+    <div className="workspace-layout">
+      {/* Workspace Header Bar */}
+      <div className="workspace-nav-bar">
+        <div className="workspace-nav-left">
+          <button className="nav-back-btn" onClick={onBack} title="Back to All Documents">
+            <ArrowLeft size={15} />
+            <span>All Documents</span>
+          </button>
+          <span className="nav-divider">/</span>
+          <div className="workspace-doc-identity">
+            <span className="doc-format-pill">{doc.fileType.toUpperCase()}</span>
+            <h2 className="workspace-doc-name" title={doc.originalName}>
               {doc.originalName}
             </h2>
           </div>
-          <div className="doc-meta-subrow">
-            <span>{doc.pageCount} {doc.pageCount === 1 ? 'Page' : 'Pages'}</span>
-            <span>•</span>
-            <span>{(doc.fileSize / 1024).toFixed(1)} KB</span>
-            <span>•</span>
-            <span>{doc.chunkCount || 0} Chunks</span>
-          </div>
         </div>
 
-        <button
-          className="btn btn-secondary btn-sm"
-          onClick={handleReanalyze}
-          disabled={reanalyzing}
-          title="Re-run AI analysis and vector embeddings"
-        >
-          <RefreshCw size={14} className={reanalyzing ? 'spin' : ''} />
-          <span>{reanalyzing ? 'Analyzing with AI...' : 'Re-Analyze'}</span>
-        </button>
+        <div className="workspace-nav-right">
+          <div className="workspace-doc-specs">
+            <span>{doc.pageCount} {doc.pageCount === 1 ? 'page' : 'pages'}</span>
+            <span>•</span>
+            <span>{(doc.fileSize / 1024).toFixed(0)} KB</span>
+            <span>•</span>
+            <span>{doc.chunkCount || 0} chunks</span>
+          </div>
+
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={handleReanalyze}
+            disabled={reanalyzing}
+            title="Re-run AI analysis and generate fresh insights"
+          >
+            <RefreshCw size={13} className={reanalyzing ? 'spin' : ''} />
+            <span>{reanalyzing ? 'Analyzing...' : 'Re-Analyze'}</span>
+          </button>
+        </div>
       </div>
 
+      {/* Analysis Pending Notice if needed */}
       {!hasAnalysis && (
-        <div className="alert-box glass-panel" style={{ background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.3)' }}>
-          <Sparkles size={18} style={{ color: 'var(--primary-light)' }} />
-          <div style={{ flex: 1 }}>
-            <strong>AI Analysis in Progress / Pending:</strong> Click the "Re-Analyze" button above to generate plain-English summaries, clause extractions, and risk alerts using Gemini AI.
+        <div className="workspace-notice-box">
+          <Info size={16} className="text-accent flex-shrink-0" />
+          <div className="notice-body">
+            <strong>Analysis Pending:</strong> Click "Re-Analyze" to extract plain-English summaries, key clauses, obligations, and risks from this document.
           </div>
           <button className="btn btn-primary btn-sm" onClick={handleReanalyze} disabled={reanalyzing}>
-            Run Analysis Now
+            {reanalyzing ? 'Processing...' : 'Run Analysis Now'}
           </button>
         </div>
       )}
 
-      {/* Workspace Tabs */}
-      <div className="workspace-tabs-nav glass-panel">
+      {/* Workspace Navigation Tabs */}
+      <div className="workspace-tab-nav">
         <button
-          className={`tab-btn ${activeTab === 'summary' ? 'tab-btn-active' : ''}`}
+          className={`tab-item ${activeTab === 'summary' ? 'tab-item-active' : ''}`}
           onClick={() => setActiveTab('summary')}
         >
-          <FileText size={16} />
-          <span>Executive Summary</span>
+          <FileText size={14} />
+          <span>Overview</span>
         </button>
 
         <button
-          className={`tab-btn ${activeTab === 'clauses' ? 'tab-btn-active' : ''}`}
+          className={`tab-item ${activeTab === 'clauses' ? 'tab-item-active' : ''}`}
           onClick={() => setActiveTab('clauses')}
         >
-          <BookOpen size={16} />
-          <span>Key Clauses ({doc.keyClauses?.length || 0})</span>
+          <BookOpen size={14} />
+          <span>Key Clauses</span>
+          {doc.keyClauses?.length > 0 && <span className="tab-count">{doc.keyClauses.length}</span>}
         </button>
 
         <button
-          className={`tab-btn ${activeTab === 'obligations' ? 'tab-btn-active' : ''}`}
+          className={`tab-item ${activeTab === 'obligations' ? 'tab-item-active' : ''}`}
           onClick={() => setActiveTab('obligations')}
         >
-          <Calendar size={16} />
-          <span>Obligations & Deadlines ({doc.obligationsAndDeadlines?.length || 0})</span>
+          <Calendar size={14} />
+          <span>Obligations & Deadlines</span>
+          {doc.obligationsAndDeadlines?.length > 0 && (
+            <span className="tab-count">{doc.obligationsAndDeadlines.length}</span>
+          )}
         </button>
 
         <button
-          className={`tab-btn ${activeTab === 'risks' ? 'tab-btn-active' : ''}`}
+          className={`tab-item ${activeTab === 'risks' ? 'tab-item-active' : ''}`}
           onClick={() => setActiveTab('risks')}
         >
-          <ShieldAlert size={16} />
-          <span>Risks & Red Flags ({doc.risksAndRedFlags?.length || 0})</span>
+          <ShieldAlert size={14} />
+          <span>Risks & Flags</span>
+          {doc.risksAndRedFlags?.length > 0 && (
+            <span className="tab-count tab-count-warning">{doc.risksAndRedFlags.length}</span>
+          )}
         </button>
 
         <button
-          className={`tab-btn ${activeTab === 'checklist' ? 'tab-btn-active' : ''}`}
+          className={`tab-item ${activeTab === 'checklist' ? 'tab-item-active' : ''}`}
           onClick={() => setActiveTab('checklist')}
         >
-          <CheckSquare size={16} />
-          <span>Lawyer Checklist ({doc.lawyerChecklist?.length || 0})</span>
+          <CheckSquare size={14} />
+          <span>Lawyer Checklist</span>
+          {doc.lawyerChecklist?.length > 0 && <span className="tab-count">{doc.lawyerChecklist.length}</span>}
         </button>
 
         <button
-          className={`tab-btn ${activeTab === 'qa' ? 'tab-btn-active' : ''}`}
+          className={`tab-item ${activeTab === 'qa' ? 'tab-item-active' : ''}`}
           onClick={() => setActiveTab('qa')}
         >
-          <MessageSquare size={16} />
+          <MessageSquare size={14} />
           <span>Grounded Q&A</span>
         </button>
       </div>
 
-      {/* TAB 1: EXECUTIVE SUMMARY */}
-      {activeTab === 'summary' && (
-        <div className="tab-pane glass-panel">
-          <div className="pane-header">
-            <h3 className="pane-title">
-              <Sparkles size={20} style={{ color: 'var(--primary-light)' }} />
-              Plain-English Executive Summary
-            </h3>
-            <p className="pane-desc">
-              Simplified overview of this legal agreement, removing unnecessary legalese.
-            </p>
-          </div>
-
-          <div className="summary-content-box">
-            {doc.summary ? (
-              <p style={{ fontSize: '1rem', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
-                {doc.summary}
+      {/* TAB CONTENT PANES */}
+      <div className="workspace-tab-content">
+        {/* TAB 1: EXECUTIVE SUMMARY */}
+        {activeTab === 'summary' && (
+          <div className="tab-panel">
+            <div className="panel-header">
+              <h3 className="panel-title">Executive Summary</h3>
+              <p className="panel-subtitle">
+                Plain-English simplified explanation of the agreement's purpose, parties, and scope.
               </p>
-            ) : (
-              <p style={{ color: 'var(--text-muted)' }}>
-                No summary generated yet. Click "Re-Analyze" at the top to generate one.
+            </div>
+
+            <div className="summary-card">
+              {doc.summary ? (
+                <p className="summary-text">{doc.summary}</p>
+              ) : (
+                <p className="text-muted">
+                  No summary generated yet. Click "Re-Analyze" at the top to generate one.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: KEY CLAUSES */}
+        {activeTab === 'clauses' && (
+          <div className="tab-panel">
+            <div className="panel-header">
+              <h3 className="panel-title">Key Provisions & Clauses</h3>
+              <p className="panel-subtitle">
+                Important terms identified in the agreement, paired with simplified explanations.
               </p>
-            )}
-          </div>
-        </div>
-      )}
+            </div>
 
-      {/* TAB 2: KEY CLAUSES */}
-      {activeTab === 'clauses' && (
-        <div className="tab-pane glass-panel">
-          <div className="pane-header">
-            <h3 className="pane-title">
-              <BookOpen size={20} style={{ color: 'var(--primary-light)' }} />
-              Extracted Key Clauses & Simplified Explanations
-            </h3>
-            <p className="pane-desc">
-              Key provisions identified in the text with plain-English translations.
-            </p>
-          </div>
-
-          {doc.keyClauses && doc.keyClauses.length > 0 ? (
-            <div className="cards-stack">
-              {doc.keyClauses.map((clause, idx) => (
-                <div key={idx} className="analysis-card">
-                  <div className="analysis-card-top">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <h4 style={{ fontSize: '1.05rem', fontWeight: 700 }}>{clause.title}</h4>
-                      <span className={`importance-tag tag-${clause.importance || 'medium'}`}>
+            {doc.keyClauses && doc.keyClauses.length > 0 ? (
+              <div className="clause-list">
+                {doc.keyClauses.map((clause, idx) => (
+                  <div key={idx} className="clause-item">
+                    <div className="clause-header">
+                      <h4 className="clause-title">{clause.title}</h4>
+                      <span className={`priority-tag priority-${clause.importance || 'medium'}`}>
                         {clause.importance || 'medium'} priority
                       </span>
                     </div>
-                  </div>
 
-                  <div className="simplified-box">
-                    <span className="simplified-label">Simplified Meaning:</span>
-                    <p style={{ marginTop: '0.2rem', color: '#e0e7ff', fontSize: '0.92rem' }}>
-                      {clause.simplifiedExplanation}
-                    </p>
-                  </div>
-
-                  {clause.originalSnippet && (
-                    <div className="snippet-box">
-                      <span className="snippet-label">Original Document Excerpt:</span>
-                      <blockquote className="legal-quote">"{clause.originalSnippet}"</blockquote>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p style={{ color: 'var(--text-muted)' }}>No key clauses extracted yet.</p>
-          )}
-        </div>
-      )}
-
-      {/* TAB 3: OBLIGATIONS & DEADLINES */}
-      {activeTab === 'obligations' && (
-        <div className="tab-pane glass-panel">
-          <div className="pane-header">
-            <h3 className="pane-title">
-              <Calendar size={20} style={{ color: 'var(--primary-light)' }} />
-              Obligations & Critical Deadlines
-            </h3>
-            <p className="pane-desc">
-              Actions required by each party, timelines, and consequences of breach.
-            </p>
-          </div>
-
-          {doc.obligationsAndDeadlines && doc.obligationsAndDeadlines.length > 0 ? (
-            <div className="cards-stack">
-              {doc.obligationsAndDeadlines.map((item, idx) => (
-                <div key={idx} className="analysis-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span className="party-badge">Responsible: {item.party || 'Party'}</span>
-                    <span className="deadline-badge">
-                      <Clock size={13} /> {item.deadline || 'Ongoing'}
-                    </span>
-                  </div>
-                  <p style={{ marginTop: '0.75rem', fontWeight: 500, fontSize: '0.95rem' }}>
-                    {item.description}
-                  </p>
-                  {item.consequence && (
-                    <div className="consequence-alert">
-                      <strong>Consequence of breach:</strong> {item.consequence}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p style={{ color: 'var(--text-muted)' }}>No obligations or deadlines detected.</p>
-          )}
-        </div>
-      )}
-
-      {/* TAB 4: RISKS & RED FLAGS */}
-      {activeTab === 'risks' && (
-        <div className="tab-pane glass-panel">
-          <div className="pane-header">
-            <h3 className="pane-title">
-              <ShieldAlert size={20} style={{ color: '#f59e0b' }} />
-              Potential Risks & Red Flags
-            </h3>
-            <p className="pane-desc">
-              Clauses that may expose you to undue liability, penalties, or unfavorable terms.
-            </p>
-          </div>
-
-          {doc.risksAndRedFlags && doc.risksAndRedFlags.length > 0 ? (
-            <div className="cards-stack">
-              {doc.risksAndRedFlags.map((risk, idx) => (
-                <div key={idx} className="analysis-card risk-card">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fca5a5' }}>
-                      {risk.title}
-                    </h4>
-                    <span className={`severity-tag severity-${risk.severity || 'medium'}`}>
-                      {risk.severity || 'medium'} risk
-                    </span>
-                  </div>
-
-                  <p style={{ marginTop: '0.5rem', fontSize: '0.92rem', color: '#f3f4f6' }}>
-                    {risk.description}
-                  </p>
-
-                  {risk.recommendation && (
-                    <div className="recommendation-box">
-                      <strong>Recommended Action:</strong> {risk.recommendation}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p style={{ color: 'var(--text-muted)' }}>No significant risks or red flags detected.</p>
-          )}
-        </div>
-      )}
-
-      {/* TAB 5: LAWYER CHECKLIST */}
-      {activeTab === 'checklist' && (
-        <div className="tab-pane glass-panel">
-          <div className="pane-header">
-            <h3 className="pane-title">
-              <CheckSquare size={20} style={{ color: '#34d399' }} />
-              Actionable Lawyer Discussion Checklist
-            </h3>
-            <p className="pane-desc">
-              Tailored questions and discussion points to raise with your attorney before signing.
-            </p>
-          </div>
-
-          {doc.lawyerChecklist && doc.lawyerChecklist.length > 0 ? (
-            <div className="checklist-stack">
-              {doc.lawyerChecklist.map((item, idx) => (
-                <div key={idx} className="checklist-item-card">
-                  <div className="checklist-number">{idx + 1}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
-                      <span className="category-chip">{item.category || 'General'}</span>
-                    </div>
-                    <div style={{ fontWeight: 600, fontSize: '0.98rem', color: '#ffffff' }}>
-                      {item.question}
-                    </div>
-                    {item.context && (
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
-                        <strong>Context:</strong> {item.context}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p style={{ color: 'var(--text-muted)' }}>No checklist generated yet.</p>
-          )}
-        </div>
-      )}
-
-      {/* TAB 6: GROUNDED Q&A CHAT */}
-      {activeTab === 'qa' && (
-        <div className="tab-pane glass-panel qa-pane">
-          <div className="pane-header">
-            <h3 className="pane-title">
-              <MessageSquare size={20} style={{ color: 'var(--primary-light)' }} />
-              Ask Questions About this Document
-            </h3>
-            <p className="pane-desc">
-              Answers are strictly grounded in this document's text with clause and page citations.
-            </p>
-          </div>
-
-          {/* Chat Messages Thread */}
-          <div className="chat-messages-scroll">
-            {chatHistory.length === 0 ? (
-              <div className="chat-empty-state">
-                <Sparkles size={32} style={{ color: 'var(--primary-light)', margin: '0 auto 0.75rem' }} />
-                <p style={{ fontWeight: 600 }}>What would you like to know about this agreement?</p>
-                <div className="suggested-questions-row">
-                  {[
-                    'What are the termination conditions?',
-                    'Are there any penalty or indemnification clauses?',
-                    'What are my main obligations?',
-                    'Is there an automatic renewal clause?',
-                  ].map((sampleQ, idx) => (
-                    <button
-                      key={idx}
-                      className="suggested-q-chip"
-                      onClick={() => {
-                        setQuestion(sampleQ);
-                      }}
-                    >
-                      {sampleQ}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              chatHistory.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`chat-bubble-wrap ${msg.sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}`}
-                >
-                  <div className="chat-bubble">
-                    <div className="chat-bubble-header">
-                      {msg.sender === 'user' ? 'You' : 'LexiAssist AI'}
-                    </div>
-                    <div className="chat-bubble-body" style={{ whiteSpace: 'pre-wrap' }}>
-                      {msg.text}
+                    <div className="clause-explanation">
+                      <span className="field-label">Simplified Explanation:</span>
+                      <p className="explanation-text">{clause.simplifiedExplanation}</p>
                     </div>
 
-                    {msg.citations && msg.citations.length > 0 && (
-                      <div className="citations-tray">
-                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                          Sources Cited:
-                        </span>
-                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
-                          {msg.citations.map((cite, cIdx) => (
-                            <span key={cIdx} className="cite-badge" title={cite.snippet}>
-                              Page {cite.pageNumber} • {cite.section}
-                            </span>
-                          ))}
-                        </div>
+                    {clause.originalSnippet && (
+                      <div className="clause-quote-box">
+                        <span className="quote-label">Excerpt:</span>
+                        <blockquote className="legal-quote">"{clause.originalSnippet}"</blockquote>
                       </div>
                     )}
                   </div>
-                </div>
-              ))
-            )}
-
-            {asking && (
-              <div className="chat-bubble-wrap chat-bubble-ai">
-                <div className="chat-bubble" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <Loader2 size={16} className="spin" style={{ color: 'var(--primary-light)' }} />
-                  <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-                    Searching document & formulating grounded answer...
-                  </span>
-                </div>
+                ))}
               </div>
+            ) : (
+              <p className="text-muted">No key clauses extracted yet.</p>
             )}
           </div>
+        )}
 
-          {/* Chat Input Bar */}
-          <form onSubmit={handleAskQuestion} className="chat-input-bar">
-            <input
-              type="text"
-              placeholder="Ask a question about this document (e.g. 'Can I terminate early?')..."
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              className="chat-text-input"
-              disabled={asking}
-            />
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={!question.trim() || asking}
-              style={{ padding: '0.6rem 1.25rem' }}
-            >
-              <Send size={16} />
-              <span>Ask</span>
-            </button>
-          </form>
-        </div>
-      )}
+        {/* TAB 3: OBLIGATIONS & DEADLINES */}
+        {activeTab === 'obligations' && (
+          <div className="tab-panel">
+            <div className="panel-header">
+              <h3 className="panel-title">Obligations & Deadlines</h3>
+              <p className="panel-subtitle">
+                Actions required by each party, compliance dates, and breach consequences.
+              </p>
+            </div>
+
+            {doc.obligationsAndDeadlines && doc.obligationsAndDeadlines.length > 0 ? (
+              <div className="obligations-list">
+                {doc.obligationsAndDeadlines.map((item, idx) => (
+                  <div key={idx} className="obligation-item">
+                    <div className="obligation-header">
+                      <span className="party-tag">Party: {item.party || 'Specified Party'}</span>
+                      <span className="deadline-tag">
+                        <Clock size={12} />
+                        <span>{item.deadline || 'Ongoing / Unspecified'}</span>
+                      </span>
+                    </div>
+
+                    <p className="obligation-desc">{item.description}</p>
+
+                    {item.consequence && (
+                      <div className="consequence-box">
+                        <span className="consequence-label">Breach Consequence:</span>
+                        <span>{item.consequence}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted">No obligations or deadlines detected.</p>
+            )}
+          </div>
+        )}
+
+        {/* TAB 4: RISKS & RED FLAGS */}
+        {activeTab === 'risks' && (
+          <div className="tab-panel">
+            <div className="panel-header">
+              <h3 className="panel-title">Potential Risks & Red Flags</h3>
+              <p className="panel-subtitle">
+                Provisions that may present liabilities, non-standard penalties, or ambiguity.
+              </p>
+            </div>
+
+            {doc.risksAndRedFlags && doc.risksAndRedFlags.length > 0 ? (
+              <div className="risks-list">
+                {doc.risksAndRedFlags.map((risk, idx) => (
+                  <div key={idx} className="risk-item">
+                    <div className="risk-header">
+                      <h4 className="risk-title">{risk.title}</h4>
+                      <span className={`risk-tag risk-tag-${risk.severity || 'medium'}`}>
+                        {risk.severity || 'medium'} severity
+                      </span>
+                    </div>
+
+                    <p className="risk-desc">{risk.description}</p>
+
+                    {risk.recommendation && (
+                      <div className="risk-action-box">
+                        <span className="action-label">Recommendation:</span>
+                        <p className="action-text">{risk.recommendation}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted">No significant risks or red flags detected.</p>
+            )}
+          </div>
+        )}
+
+        {/* TAB 5: LAWYER CHECKLIST */}
+        {activeTab === 'checklist' && (
+          <div className="tab-panel">
+            <div className="panel-header">
+              <h3 className="panel-title">Lawyer Discussion Checklist</h3>
+              <p className="panel-subtitle">
+                Practical questions to raise with legal counsel before signing or executing this agreement.
+              </p>
+            </div>
+
+            {doc.lawyerChecklist && doc.lawyerChecklist.length > 0 ? (
+              <div className="checklist-container">
+                {doc.lawyerChecklist.map((item, idx) => (
+                  <div key={idx} className="checklist-card">
+                    <div className="checklist-order">{idx + 1}</div>
+                    <div className="checklist-body">
+                      <div className="checklist-meta">
+                        <span className="category-pill">{item.category || 'General Provision'}</span>
+                      </div>
+                      <h5 className="checklist-question">{item.question}</h5>
+                      {item.context && (
+                        <p className="checklist-context">
+                          <span className="context-label">Context:</span> {item.context}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted">No checklist generated yet.</p>
+            )}
+          </div>
+        )}
+
+        {/* TAB 6: GROUNDED Q&A CHAT */}
+        {activeTab === 'qa' && (
+          <div className="tab-panel qa-layout-panel">
+            <div className="panel-header">
+              <h3 className="panel-title">Document Q&A</h3>
+              <p className="panel-subtitle">
+                Ask specific questions. Answers are grounded in the document text with page citations.
+              </p>
+            </div>
+
+            <div className="qa-chat-area">
+              <div className="chat-thread">
+                {chatHistory.length === 0 ? (
+                  <div className="chat-initial-state">
+                    <p className="initial-title">Ask any question about this document</p>
+                    <p className="initial-subtitle">Suggested inquiries:</p>
+                    <div className="suggested-prompts-list">
+                      {[
+                        'What are the termination conditions and notice periods?',
+                        'What are my key obligations under this agreement?',
+                        'Are there any indemnification, liability, or penalty clauses?',
+                        'Is there an automatic renewal or non-compete clause?',
+                      ].map((promptText, pIdx) => (
+                        <button
+                          key={pIdx}
+                          className="prompt-suggestion-btn"
+                          onClick={() => setQuestion(promptText)}
+                        >
+                          <ChevronRight size={13} className="text-muted" />
+                          <span>{promptText}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  chatHistory.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`message-row ${msg.sender === 'user' ? 'message-row-user' : 'message-row-ai'}`}
+                    >
+                      <div className="message-bubble">
+                        <div className="message-sender-label">
+                          {msg.sender === 'user' ? 'You' : 'LexiAssist'}
+                        </div>
+                        <div className="message-body-text">{msg.text}</div>
+
+                        {msg.citations && msg.citations.length > 0 && (
+                          <div className="message-citations-block">
+                            <span className="citation-lead">Sources:</span>
+                            <div className="citation-pill-row">
+                              {msg.citations.map((cite, cIdx) => (
+                                <span key={cIdx} className="source-citation-pill" title={cite.snippet}>
+                                  Page {cite.pageNumber} • {cite.section}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {asking && (
+                  <div className="message-row message-row-ai">
+                    <div className="message-bubble message-loading-bubble">
+                      <Loader2 size={14} className="spin text-accent" />
+                      <span>Retrieving document context and formulating grounded answer...</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <form onSubmit={handleAskQuestion} className="qa-input-form">
+                <input
+                  type="text"
+                  placeholder="Ask a question about this document..."
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  className="qa-text-input"
+                  disabled={asking}
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={!question.trim() || asking}
+                >
+                  <Send size={14} />
+                  <span>Ask</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, X, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, X, FileText, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { uploadDocument } from '../services/api';
 
 export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
@@ -45,7 +45,7 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
     }
 
     if (selectedFile.size > 10 * 1024 * 1024) {
-      setError('File is too large. Maximum allowed file size is 10 MB.');
+      setError('File size exceeds the 10 MB limit.');
       return;
     }
 
@@ -70,26 +70,26 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
 
   const handleUpload = async () => {
     if (!file) {
-      setError('Please select a legal document first.');
+      setError('Please select a document to upload.');
       return;
     }
 
     setUploading(true);
     setError('');
-    setStatusMessage('Uploading and extracting legal text...');
+    setStatusMessage('Uploading and parsing document...');
     setUploadProgress(40);
 
     try {
       const response = await uploadDocument(file);
       setUploadProgress(100);
-      setStatusMessage('Document parsed and chunks created successfully!');
+      setStatusMessage('Document parsed successfully.');
       setSuccessData(response.data);
       if (onUploadSuccess) {
         onUploadSuccess(response.data);
       }
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Failed to upload and process document.');
+      setError(err.message || 'Failed to upload document.');
     } finally {
       setUploading(false);
     }
@@ -106,62 +106,52 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
 
   return (
     <div className="modal-backdrop" onClick={handleClose}>
-      <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <div className="feature-icon-wrap" style={{ width: 36, height: 36 }}>
-              <UploadCloud size={20} />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: '700' }}>Upload Legal Document</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                PDF or DOCX contracts, NDAs, lease agreements (Max 10MB)
-              </p>
-            </div>
+          <div>
+            <h3 className="modal-title">Upload Legal Document</h3>
+            <p className="modal-description">
+              Upload a contract, lease, NDA, or agreement for analysis (PDF or DOCX, max 10MB)
+            </p>
           </div>
-          <button className="modal-close-btn" onClick={handleClose}>
-            <X size={20} />
+          <button className="modal-close-btn" onClick={handleClose} aria-label="Close">
+            <X size={16} />
           </button>
         </div>
 
         {error && (
-          <div className="alert-box alert-error">
-            <AlertCircle size={18} className="flex-shrink-0" />
+          <div className="alert-banner alert-error">
+            <AlertCircle size={15} className="flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {successData ? (
-          <div className="upload-success-card">
-            <CheckCircle2 size={44} style={{ color: '#10b981', margin: '0 auto' }} />
-            <h4 style={{ fontSize: '1.1rem', fontWeight: 600, marginTop: '0.5rem' }}>
-              Document Processed Successfully!
-            </h4>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              {successData.originalName}
-            </p>
+          <div className="upload-result-box">
+            <div className="success-icon-wrap">
+              <Check size={20} />
+            </div>
+            <h4 className="result-title">Document Ready for Analysis</h4>
+            <p className="result-filename">{successData.originalName}</p>
 
-            <div className="stats-badges-row">
-              <div className="stat-chip">
-                <span className="stat-label">Pages:</span>
-                <span className="stat-val">{successData.pageCount}</span>
+            <div className="result-meta-row">
+              <div className="result-meta-item">
+                <span className="result-meta-label">Pages</span>
+                <span className="result-meta-value">{successData.pageCount}</span>
               </div>
-              <div className="stat-chip">
-                <span className="stat-label">Chunks Created:</span>
-                <span className="stat-val">{successData.chunkCount}</span>
+              <div className="result-meta-item">
+                <span className="result-meta-label">Chunks</span>
+                <span className="result-meta-value">{successData.chunkCount}</span>
               </div>
-              <div className="stat-chip">
-                <span className="stat-label">Status:</span>
-                <span className="stat-val" style={{ textTransform: 'capitalize', color: '#34d399' }}>
-                  {successData.status}
-                </span>
+              <div className="result-meta-item">
+                <span className="result-meta-label">Status</span>
+                <span className="result-meta-value status-active">{successData.status}</span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+            <div className="modal-actions-row">
               <button
                 className="btn btn-secondary"
-                style={{ flex: 1 }}
                 onClick={() => {
                   setFile(null);
                   setSuccessData(null);
@@ -169,16 +159,16 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
               >
                 Upload Another
               </button>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleClose}>
-                Done
+              <button className="btn btn-primary" onClick={handleClose}>
+                Open Workspace
               </button>
             </div>
           </div>
         ) : (
           <>
-            {/* Drag and Drop Zone */}
+            {/* Dropzone */}
             <div
-              className={`dropzone ${dragActive ? 'dropzone-active' : ''}`}
+              className={`dropzone-container ${dragActive ? 'dropzone-dragover' : ''} ${file ? 'dropzone-has-file' : ''}`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
@@ -194,42 +184,40 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
               />
 
               <div className="dropzone-icon">
-                <UploadCloud size={32} />
+                <Upload size={22} />
               </div>
 
               {file ? (
-                <div className="selected-file-info">
-                  <FileText size={20} style={{ color: 'var(--primary-light)' }} />
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{file.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <div className="file-preview-card">
+                  <FileText size={18} className="file-preview-icon" />
+                  <div className="file-preview-text">
+                    <span className="file-preview-name">{file.name}</span>
+                    <span className="file-preview-size">
                       {(file.size / (1024 * 1024)).toFixed(2)} MB • Click to replace
-                    </div>
+                    </span>
                   </div>
                 </div>
               ) : (
-                <div style={{ textAlign: 'center' }}>
-                  <p style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                    Drag & drop your legal document here, or <span style={{ color: 'var(--primary-light)' }}>browse</span>
+                <div className="dropzone-text">
+                  <p className="dropzone-primary-text">
+                    Drag and drop your document here, or <span className="dropzone-link">browse files</span>
                   </p>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                    Supports PDF and DOCX up to 10MB
-                  </p>
+                  <p className="dropzone-secondary-text">PDF and DOCX formats supported</p>
                 </div>
               )}
             </div>
 
             {uploading && (
-              <div style={{ marginTop: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Loader2 size={16} className="spin" />
+              <div className="upload-progress-wrapper">
+                <div className="upload-progress-header">
+                  <span className="upload-status-label">
+                    <Loader2 size={13} className="spin" />
                     {statusMessage}
                   </span>
-                  <span>{uploadProgress}%</span>
+                  <span className="upload-progress-percent">{uploadProgress}%</span>
                 </div>
-                <div className="progress-bar-bg">
-                  <div className="progress-bar-fill" style={{ width: `${uploadProgress}%` }}></div>
+                <div className="progress-track">
+                  <div className="progress-fill" style={{ width: `${uploadProgress}%` }} />
                 </div>
               </div>
             )}
@@ -245,13 +233,13 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
               >
                 {uploading ? (
                   <>
-                    <Loader2 size={16} className="spin" />
-                    <span>Processing Document...</span>
+                    <Loader2 size={14} className="spin" />
+                    <span>Processing...</span>
                   </>
                 ) : (
                   <>
-                    <UploadCloud size={16} />
-                    <span>Process Document</span>
+                    <Upload size={14} />
+                    <span>Upload & Process</span>
                   </>
                 )}
               </button>

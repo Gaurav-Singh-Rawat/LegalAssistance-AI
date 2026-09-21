@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Calendar, Layers, Trash2, CheckCircle, Clock } from 'lucide-react';
+import { FileText, Trash2, ArrowRight, Clock } from 'lucide-react';
 import { deleteDocument } from '../services/api';
 
 export default function DocumentList({ documents, onDocumentDeleted, onSelectDocument }) {
@@ -7,9 +7,9 @@ export default function DocumentList({ documents, onDocumentDeleted, onSelectDoc
     return null;
   }
 
-  const handleDelete = async (e, docId) => {
+  const handleDelete = async (e, docId, docName) => {
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this document and its analysis?')) {
+    if (!window.confirm(`Are you sure you want to delete "${docName}"?`)) {
       return;
     }
     try {
@@ -23,62 +23,84 @@ export default function DocumentList({ documents, onDocumentDeleted, onSelectDoc
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '1.5rem', marginTop: '1rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h3 style={{ fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <FileText size={18} style={{ color: 'var(--primary-light)' }} />
-          Uploaded Documents ({documents.length})
-        </h3>
+    <section className="documents-section">
+      <div className="section-header">
+        <h3 className="section-title">Uploaded Documents</h3>
+        <span className="section-count">{documents.length} files</span>
       </div>
 
-      <div className="documents-grid">
-        {documents.map((doc) => (
-          <div
-            key={doc._id}
-            className="document-card"
-            onClick={() => onSelectDocument && onSelectDocument(doc)}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div className="doc-icon-badge">
-                  <FileText size={20} />
-                </div>
-                <div>
-                  <div className="doc-title" title={doc.originalName}>
-                    {doc.originalName}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.75rem', marginTop: '0.2rem' }}>
-                    <span style={{ textTransform: 'uppercase' }}>{doc.fileType}</span>
-                    <span>•</span>
-                    <span>{(doc.fileSize / 1024).toFixed(1)} KB</span>
-                    <span>•</span>
-                    <span>{doc.pageCount} {doc.pageCount === 1 ? 'Page' : 'Pages'}</span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                className="delete-icon-btn"
-                onClick={(e) => handleDelete(e, doc._id)}
-                title="Delete document"
+      <div className="documents-table-wrap">
+        <table className="documents-table">
+          <thead>
+            <tr>
+              <th style={{ width: '45%' }}>Document Name</th>
+              <th>Format</th>
+              <th>Pages</th>
+              <th>Size</th>
+              <th>Date Added</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {documents.map((doc) => (
+              <tr
+                key={doc._id}
+                className="document-row"
+                onClick={() => onSelectDocument && onSelectDocument(doc)}
               >
-                <Trash2 size={16} />
-              </button>
-            </div>
-
-            <div className="doc-card-footer">
-              <span className="doc-status-badge">
-                <CheckCircle size={12} />
-                {doc.status}
-              </span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <Clock size={12} />
-                {new Date(doc.createdAt).toLocaleDateString()}
-              </span>
-            </div>
-          </div>
-        ))}
+                <td>
+                  <div className="document-name-cell">
+                    <div className="doc-type-icon">
+                      <FileText size={15} />
+                    </div>
+                    <span className="doc-main-name" title={doc.originalName}>
+                      {doc.originalName}
+                    </span>
+                  </div>
+                </td>
+                <td>
+                  <span className="doc-format-tag">{doc.fileType.toUpperCase()}</span>
+                </td>
+                <td className="text-muted">
+                  {doc.pageCount} {doc.pageCount === 1 ? 'page' : 'pages'}
+                </td>
+                <td className="text-muted">
+                  {(doc.fileSize / 1024).toFixed(0)} KB
+                </td>
+                <td className="text-muted">
+                  {new Date(doc.createdAt).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                  <div className="doc-row-actions">
+                    <button
+                      className="btn-action btn-view"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectDocument && onSelectDocument(doc);
+                      }}
+                      title="Open Workspace"
+                    >
+                      <span>Open</span>
+                      <ArrowRight size={12} />
+                    </button>
+                    <button
+                      className="btn-action btn-delete"
+                      onClick={(e) => handleDelete(e, doc._id, doc.originalName)}
+                      title="Delete document"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    </div>
+    </section>
   );
 }
