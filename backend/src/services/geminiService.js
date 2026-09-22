@@ -67,8 +67,8 @@ const generateBatchEmbeddings = async (textArray) => {
 const CANDIDATE_GENERATIVE_MODELS = [
   process.env.GEMINI_MODEL || 'gemini-3.6-flash',
   'gemini-3.6-flash',
+  'gemini-3.5-flash-lite',
   'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
 ].filter((modelName, index, models) => modelName && models.indexOf(modelName) === index);
 
 const isRetryableGeminiError = (error) => {
