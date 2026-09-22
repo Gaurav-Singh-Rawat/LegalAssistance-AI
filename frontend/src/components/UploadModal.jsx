@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Upload, X, FileText, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { uploadDocument } from '../services/api';
 
@@ -12,6 +12,24 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
   const [successData, setSuccessData] = useState(null);
 
   const fileInputRef = useRef(null);
+  const dialogRef = useRef(null);
+  const dropzoneRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const focusTarget = dropzoneRef.current || dialogRef.current?.querySelector('button, input');
+    focusTarget?.focus();
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        handleClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -104,23 +122,37 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
     onClose();
   };
 
+  const handleDropzoneKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      fileInputRef.current?.click();
+    }
+  };
+
   return (
     <div className="modal-backdrop" onClick={handleClose}>
-      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-dialog"
+        onClick={(e) => e.stopPropagation()}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upload-modal-title"
+      >
         <div className="modal-header">
           <div>
-            <h3 className="modal-title">Upload Legal Document</h3>
+            <h3 className="modal-title" id="upload-modal-title">Upload Legal Document</h3>
             <p className="modal-description">
               Upload a contract, lease, NDA, or agreement for analysis (PDF or DOCX, max 10MB)
             </p>
           </div>
-          <button className="modal-close-btn" onClick={handleClose} aria-label="Close">
+          <button className="modal-close-btn" onClick={handleClose} aria-label="Close upload dialog">
             <X size={16} />
           </button>
         </div>
 
         {error && (
-          <div className="alert-banner alert-error">
+          <div className="alert-banner alert-error" aria-live="polite">
             <AlertCircle size={15} className="flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -168,18 +200,25 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
           <>
             {/* Dropzone */}
             <div
+              ref={dropzoneRef}
               className={`dropzone-container ${dragActive ? 'dropzone-dragover' : ''} ${file ? 'dropzone-has-file' : ''}`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
+              onKeyDown={handleDropzoneKeyDown}
+              tabIndex={0}
+              role="button"
+              aria-label="Upload legal document"
+              aria-describedby="upload-document-help"
             >
               <input
                 ref={fileInputRef}
                 type="file"
                 accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 style={{ display: 'none' }}
+                aria-label="Choose a PDF or Word document"
                 onChange={handleChange}
               />
 
@@ -202,13 +241,13 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
                   <p className="dropzone-primary-text">
                     Drag and drop your document here, or <span className="dropzone-link">browse files</span>
                   </p>
-                  <p className="dropzone-secondary-text">PDF and DOCX formats supported</p>
+                  <p className="dropzone-secondary-text" id="upload-document-help">PDF and DOCX formats supported</p>
                 </div>
               )}
             </div>
 
             {uploading && (
-              <div className="upload-progress-wrapper">
+              <div className="upload-progress-wrapper" aria-live="polite">
                 <div className="upload-progress-header">
                   <span className="upload-status-label">
                     <Loader2 size={13} className="spin" />

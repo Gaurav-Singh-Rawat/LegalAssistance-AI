@@ -1480,6 +1480,17 @@ html, body {
   background-color: var(--bg-surface-subtle);
 }
 
+button:focus-visible,
+input:focus-visible,
+.tab:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+.modal-close-btn:focus-visible,
+.auth-password-toggle:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
 /* Authentication Modal */
 .auth-modal-dialog {
   max-width: 420px;
@@ -1524,6 +1535,11 @@ html, body {
   color: var(--text-primary);
   background: var(--bg-surface-subtle);
   border-color: var(--border-subtle);
+}
+
+.auth-tab:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
 .auth-error {
@@ -1616,6 +1632,11 @@ html, body {
 .dropzone-container:hover, .dropzone-dragover {
   border-color: var(--accent-primary);
   background-color: var(--accent-subtle);
+}
+
+.dropzone-container:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
 .dropzone-icon {

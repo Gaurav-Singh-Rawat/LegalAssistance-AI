@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const morgan = require('morgan');
 const connectDB = require('./config/db');
 const healthRoutes = require('./routes/healthRoutes');
@@ -18,11 +19,16 @@ const allowedOrigins = (process.env.CLIENT_URL || '*')
 
 // Render forwards the original client IP in X-Forwarded-For.
 app.set('trust proxy', 1);
+app.disable('x-powered-by');
 
 // Initialize Database connection
 connectDB();
 
 // Middleware
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 app.use(cors({
   origin: (requestOrigin, callback) => {
     const normalizedRequestOrigin = requestOrigin?.replace(/\/$/, '');
@@ -33,9 +39,11 @@ app.use(cors({
     return callback(new Error('Origin is not allowed by CORS'));
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(morgan('dev'));
 
 // Apply General Rate Limiter to all API routes

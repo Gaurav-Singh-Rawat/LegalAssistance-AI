@@ -21,9 +21,19 @@ const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
     const normalizedEmail = email?.trim().toLowerCase();
+    const trimmedName = name?.trim();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!name?.trim() || !normalizedEmail || !password) {
+    if (!trimmedName || !normalizedEmail || !password) {
       return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
+    }
+
+    if (trimmedName.length < 2 || trimmedName.length > 60) {
+      return res.status(400).json({ success: false, message: 'Name must be between 2 and 60 characters.' });
+    }
+
+    if (!emailPattern.test(normalizedEmail)) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid email address.' });
     }
 
     if (password.length < 6) {
@@ -36,7 +46,7 @@ const registerUser = async (req, res) => {
     }
 
     const user = await User.create({
-      name: name.trim(),
+      name: trimmedName,
       email: normalizedEmail,
       password,
     });
