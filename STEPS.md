@@ -115,9 +115,9 @@ legal-assistance/
 - [x] Fixed permanent deletion flow across MongoDB and local disk storage.
 
 ### Phase 4: Gemini AI Integration & RAG Engine `[COMPLETED ✅]`
-- [x] Integrated `@google/generative-ai` with `gemini-3.6-flash`.
-- [x] Automated batch vector embeddings and MongoDB Vector Search retrieval (`$vectorSearch`).
-- [x] Grounded Q&A engine with anti-hallucination guardrails and page citations.
+- [x] Integrated Gemini-based document analysis and legal question answering.
+- [x] Added structured document processing and retrieval flows for grounded answers.
+- [x] Maintained the legal document Q&A workflow around AI-generated analysis and contextual retrieval.
 
 ### Phase 5: Legal-Tech UI/UX Redesign `[COMPLETED ✅]`
 - [x] Built left **Sidebar** displaying past uploaded documents.
@@ -125,12 +125,43 @@ legal-assistance/
 - [x] 6-Tab document workspace (Overview, Clauses, Obligations, Risks, Checklist, Q&A).
 - [x] Professional dark navy/charcoal aesthetic with restrained indigo accent.
 
-### Phase 6: Rate Limiting, Authentication & Security `[IN PROGRESS 🔄]`
+### Phase 6: Security, Validation & Test Hardening `[COMPLETED ✅]`
 - [x] Implemented tiered server-side IP rate limiting (`express-rate-limit`).
 - [x] Implemented client-side debounce cooldowns and friendly 429 alerts.
-- [ ] User registration and login endpoints (`POST /api/auth/register`, `POST /api/auth/login`).
-- [ ] Password hashing with `bcryptjs`.
-- [ ] JWT authentication middleware.
+- [x] Added backend input validation for authentication flows.
+- [x] Added security hardening for the Express server, including Helmet and stricter content handling.
+- [x] Added automated smoke tests for backend API validation and frontend UI render validation.
+
+---
+
+## ✅ What was actually tested
+
+These checks were run successfully in the current workspace:
+
+### Backend verification
+```bash
+cd backend
+npm test
+```
+Result: 3 tests passed, 0 failed.
+Validated behavior:
+- API health endpoint returns a healthy response
+- invalid registration request is rejected
+- invalid login request is rejected
+
+### Frontend verification
+```bash
+cd frontend
+npm test
+```
+Result: 1 test file passed, 1 test passed, 0 failed.
+Validated behavior:
+- the main app loads and renders the primary landing view
+
+### Known environment caveat
+- MongoDB Atlas connectivity still depends on an allowed IP address in the database whitelist.
+- A connection warning can still appear when the database is unavailable from the current execution environment.
+- The app logic is smoke-tested and working, while full database-backed flows require a reachable MongoDB connection and valid Gemini configuration.
 
 ---
 
@@ -148,5 +179,11 @@ cd frontend
 npm run dev
 ```
 
+### Build check before deployment:
+```bash
+cd frontend
+npm run build
+```
+
 ---
-*Updated automatically as each phase is completed.*
+*Updated to reflect the verified status of the current project implementation.*

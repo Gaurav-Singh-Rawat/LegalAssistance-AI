@@ -67,10 +67,13 @@ app.get('/', (req, res) => {
 app.use(notFound);
 app.use(errorHandler);
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`=============================================`);
-  console.log(`🚀 Legal AI Backend running on port ${PORT}`);
-  console.log(`🔗 Health Check: http://localhost:${PORT}/api/health`);
-  console.log(`=============================================`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`=============================================`);
+    console.log(`🚀 Legal AI Backend running on port ${PORT}`);
+    console.log(`🔗 Health Check: http://localhost:${PORT}/api/health`);
+    console.log(`=============================================`);
+  });
+}
+
+module.exports = app;

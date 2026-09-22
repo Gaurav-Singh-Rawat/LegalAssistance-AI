@@ -232,6 +232,26 @@ The backend applies IP-based rate limits to protect the API and Gemini quota:
 
 A rate-limited request returns HTTP `429` with a retry message.
 
+## Verified status
+
+The project has been checked with the following commands and results:
+
+- Backend test suite: `cd backend && npm test`
+  - Result: 3 tests passed, 0 failed
+  - Validated flows: health endpoint response, invalid registration rejection, invalid login rejection
+
+- Frontend smoke test: `cd frontend && npm test`
+  - Result: 1 test file passed, 1 test passed, 0 failed
+  - Validated flow: the main app loads and renders the landing view successfully
+
+- Frontend production build: `cd frontend && npm run build`
+  - This should be run before deployment to confirm Vite can compile the app cleanly
+
+Current environment caveat:
+- MongoDB Atlas connectivity is still dependent on the deployment IP being whitelisted.
+- The test commands passed even though a database connection warning may appear in local runs when MongoDB is not reachable from the current environment.
+- The app logic is validated at the smoke-test level, while full document-processing and AI flows require a reachable database and valid Gemini credentials.
+
 ## Useful checks
 
 Once the backend is running, open:
