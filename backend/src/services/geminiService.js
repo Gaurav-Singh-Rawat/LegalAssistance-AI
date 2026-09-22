@@ -65,12 +65,11 @@ const generateBatchEmbeddings = async (textArray) => {
 };
 
 const CANDIDATE_GENERATIVE_MODELS = [
-  process.env.GEMINI_MODEL,
+  process.env.GEMINI_MODEL || 'gemini-3.6-flash',
   'gemini-3.6-flash',
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
-  'gemini-2.5-pro',
-].filter(Boolean).filter((modelName, index, models) => models.indexOf(modelName) === index);
+].filter((modelName, index, models) => modelName && models.indexOf(modelName) === index);
 
 const isRetryableGeminiError = (error) => {
   const message = error?.message || '';
